@@ -19,15 +19,15 @@ void alg_memalloc_init(alg_memalloc_hook *handle) {
     }
 }
 
-void *alg_malloc(size_t size) {
-    return g_memalloc_handle.alg_memalloc_malloc(size);
+void *alg_malloc(unsigned long long size) {
+    return g_memalloc_handle.alg_memalloc_malloc((size_t)size);
 }
 void alg_free(void *ptr) {
     g_memalloc_handle.alg_memalloc_free(ptr);
 }
-void *alg_realloc(void *ptr, size_t size) {
-    return g_memalloc_handle.alg_memalloc_realloc(ptr, size);
+void *alg_realloc(void *ptr, unsigned long long size) {
+    return g_memalloc_handle.alg_memalloc_realloc(ptr, (size_t)size);
 }
-void *alg_calloc(size_t number, size_t size) {
-    return g_memalloc_handle.alg_memalloc_calloc(number, size);
+void *alg_calloc(unsigned long long number, unsigned long long size) {
+    return g_memalloc_handle.alg_memalloc_calloc((size_t)number, (size_t)size);
 }

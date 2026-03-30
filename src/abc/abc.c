@@ -11,7 +11,7 @@ abc_handle *abc_init(optim_handle optim, int pop_size, int max_count) {
         return NULL;
     handle->population = alg_matrix_create(pop_size, optim.dim);
     handle->fitness = alg_vector_create(pop_size, 0.0);
-    handle->count = ALG_CALLOC((size_t)pop_size, sizeof(int));
+    handle->count = ALG_CALLOC((unsigned long long)pop_size, sizeof(int));
     if (handle->population == NULL || handle->fitness == NULL || handle->count == NULL) {
         alg_matrix_free(handle->population);
         alg_vector_free(handle->fitness);

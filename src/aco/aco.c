@@ -99,7 +99,7 @@ alg_state aco_fresh(aco_handle *handle) {
     }
 
     for (int iter = 0; iter < handle->number; iter++) {
-        int *visited = (int *)ALG_CALLOC((size_t)N, sizeof(int));
+        int *visited = (int *)ALG_CALLOC((unsigned long long)N, sizeof(int));
         if (visited == NULL) {
             ALG_FREE(path);
             alg_vector_free(path_lengths);
