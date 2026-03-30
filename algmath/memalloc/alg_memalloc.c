@@ -1,5 +1,4 @@
 #include "alg_memalloc.h"
-#include <corecrt.h>
 #include <stdlib.h>
 static alg_memalloc_hook g_memalloc_handle = {.alg_memalloc_calloc = calloc,
                                               .alg_memalloc_free = free,
