@@ -21,6 +21,6 @@ optimization test_function_list[] = {
 };
 
 double test_return_list[] = {
-    0.0,
-    0.0,
+    2.0, // sphere_function minimum is 0 + 2 = 2
+    0.0, // rosenbrock minimum is 0
 };

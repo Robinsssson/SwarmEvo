@@ -41,7 +41,7 @@ alg_state optim_fresh(optim_handle *handle, alg_matrix *population, alg_vector *
 }
 
 alg_state optim_fresh_best_solution(optim_handle *handle, alg_matrix *population, alg_vector *fitness, int index) {
-    handle->bast_value = fitness->vector[index];
+    handle->best_value = fitness->vector[index];
     for (int i = 0; i < population->col; i++)
         handle->best_solution->vector[i] = *alg_matrix_get_pos_val(population, index, i);
     return ALG_OK;
@@ -49,7 +49,7 @@ alg_state optim_fresh_best_solution(optim_handle *handle, alg_matrix *population
 
 alg_state optim_print(optim_handle *handle) {
     char *str = alg_vector_print_str(handle->best_solution);
-    printf("OPTIMIZATION best value %.4f, %s\n", handle->bast_value, str);
+    printf("OPTIMIZATION best value %.4f, %s\n", handle->best_value, str);
     ALG_FREE(str);
     return ALG_OK;
 }

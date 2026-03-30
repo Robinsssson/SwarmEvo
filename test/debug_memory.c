@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 // 定义节点结构以跟踪已分配的内存块
 typedef struct MemNode {
     void *ptr;            // 内存块指针
@@ -39,25 +38,6 @@ static void remove_mem_record(void *ptr) {
         prev = current;
         current = current->next;
     }
-}
-
-// 打印未释放的内存记录
-static void print_mem_leaks(void) {
-    MemNode *current = head;
-    size_t total_leaked = 0;
-
-    if (!current) {
-        printf("No memory leaks detected.\n");
-        return;
-    }
-
-    printf("Memory leaks detected:\n");
-    while (current) {
-        printf("Leaked block at %p, size: %zu bytes\n", current->ptr, current->size);
-        total_leaked += current->size;
-        current = current->next;
-    }
-    printf("Total leaked memory: %zu bytes\n", total_leaked);
 }
 
 // 自定义 malloc 函数
@@ -98,16 +78,33 @@ void debug_free(void *ptr) {
     }
 }
 
-// 清理所有记录并检查是否有未释放的内存
-void check_memory_leaks(void) {
-    print_mem_leaks();
+// 清理所有记录并检查是否有未释放的内存，返回泄漏块数
+int check_memory_leaks(void) {
+    MemNode *current = head;
+    int leaked = 0;
+
+    if (!current) {
+        printf("No memory leaks detected.\n");
+        return 0;
+    }
+
+    printf("Memory leaks detected:\n");
+    size_t total_leaked = 0;
+    while (current) {
+        printf("Leaked block at %p, size: %zu bytes\n", current->ptr, current->size);
+        total_leaked += current->size;
+        leaked++;
+        current = current->next;
+    }
+    printf("Total leaked memory: %zu bytes\n", total_leaked);
 
     // 清理链表
-    MemNode *current = head;
+    current = head;
     while (current) {
         MemNode *to_free = current;
         current = current->next;
         free(to_free);
     }
     head = NULL;
+    return leaked;
 }

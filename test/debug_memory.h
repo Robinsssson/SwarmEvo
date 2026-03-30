@@ -45,8 +45,9 @@ void debug_free(void *ptr);
  *
  * 此函数会打印所有泄漏的内存块信息，并计算泄漏的总内存大小。
  * 调用后会清理内存记录链表。
+ * @return 泄漏的内存块数量，0 表示无泄漏。
  */
-void check_memory_leaks(void);
+int check_memory_leaks(void);
 
 #ifdef __cplusplus
 }

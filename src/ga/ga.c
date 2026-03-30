@@ -4,19 +4,7 @@
 #include "vector/alg_vector.h"
 #include <math.h>
 #include <stdio.h>
-#include <stdlib.h>
 
-#define GA_LOGGING(fmt, ...)                                                                                           \
-    do {                                                                                                               \
-        printf(fmt, ##__VA_ARGS__);                                                                                    \
-    } while (0)
-
-#define GA_LOGGING_MAT(mat)                                                                                            \
-    do {                                                                                                               \
-        char *strs = alg_matrix_print_str(mat);                                                                        \
-        printf("%s\n", strs);                                                                                          \
-        ALG_FREE(strs);                                                                                                \
-    } while (0)
 // 初始化遗传算法结构体
 ga_handle *ga_init(optim_handle optim, int pop_size, double mutation_rate, double crossover_rate) {
     ga_handle *handle = ALG_MALLOC(sizeof(ga_handle));
@@ -88,6 +76,7 @@ static alg_state crossover(ga_handle *handle, const alg_vector *parent1, const a
     alg_vector *tmp_parent2_begin = alg_vector_slice(parent2, ALG_ALL_RANGE, cross_number);
     if (tmp_parent1_begin == NULL || tmp_parent2_begin == NULL) {
         ERROR("ERROR");
+        return ALG_ERROR;
     }
     if (tmp_parent1_end == NULL || tmp_parent2_end == NULL || tmp_parent1_begin == NULL || tmp_parent2_begin == NULL) {
         ERROR("CREARE VECTOR SLICE IS ERROR");
@@ -118,7 +107,7 @@ static alg_state crossover(ga_handle *handle, const alg_vector *parent1, const a
 // 变异操作：对子代进行变异
 static void mutate(ga_handle *handle, alg_vector *vector) {
     if (alg_random_float64(0, 1) < handle->mutation_rate) {
-        int mutation_point = alg_random_int(0, handle->optim.dim + 1); // 随机选择变异点
+        int mutation_point = alg_random_int(0, handle->optim.dim); // 随机选择变异点
         // 在变异点处用一个随机值进行变异
         alg_vector_set_val(vector, mutation_point,
                            alg_random_float64(handle->optim.l_range->vector[mutation_point],
@@ -141,8 +130,13 @@ static alg_state generate_new_population(ga_handle *handle) {
     }
 
     // 用于存放子代的数组
-    alg_vector *child_list[2 * number_parents];
-     for (int i = 0; i < 2 * number_parents; i ++) {
+    alg_vector **child_list = (alg_vector **)ALG_MALLOC((size_t)(2 * number_parents) * sizeof(alg_vector *));
+    if (child_list == NULL) {
+        ERROR("CHILD LIST ALLOC ERROR");
+        alg_matrix_free(new_population);
+        return ALG_ERROR;
+    }
+    for (int i = 0; i < 2 * number_parents; i++) {
         child_list[i] = NULL;
     }
     // 开始交叉并生成子代
@@ -151,13 +145,23 @@ static alg_state generate_new_population(ga_handle *handle) {
         alg_vector *parent1 = alg_vector_from_matrix_row(handle->population, i);
         alg_vector *parent2 = alg_vector_from_matrix_row(handle->population, i + 1);
         if (parent1 == NULL || parent2 == NULL) {
-            exit(-1);
+            alg_vector_free(parent1);
+            alg_vector_free(parent2);
+            for (int k = 0; k < i; k++)
+                alg_vector_free(child_list[k]);
+            ALG_FREE(child_list);
+            alg_matrix_free(new_population);
+            return ALG_ERROR;
         }
         // 进行交叉生成两个子代
         alg_vector *child1 = NULL, *child2 = NULL;
         if (crossover(handle, parent1, parent2, &child1, &child2) != ALG_OK) {
             alg_vector_free(parent1);
             alg_vector_free(parent2);
+            for (int k = 0; k < i; k++)
+                alg_vector_free(child_list[k]);
+            ALG_FREE(child_list);
+            alg_matrix_free(new_population);
             return ALG_ERROR;
         }
 
@@ -193,9 +197,10 @@ static alg_state generate_new_population(ga_handle *handle) {
 
     // 替换旧种群为新种群
     alg_matrix_free(handle->population);
-    for (int i = 0; i < 2 * number_parents; i ++) {
+    for (int i = 0; i < 2 * number_parents; i++) {
         alg_vector_free(child_list[i]);
     }
+    ALG_FREE(child_list);
     handle->population = new_population;
     handle->pop_size = handle->population->row;
     return ALG_OK;

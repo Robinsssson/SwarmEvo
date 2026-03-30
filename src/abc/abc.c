@@ -4,15 +4,23 @@
 #include "memalloc/alg_memalloc.h"
 #include "random/alg_random.h"
 #include "vector/alg_vector.h"
-#include <corecrt.h>
 
 abc_handle *abc_init(optim_handle optim, int pop_size, int max_count) {
     abc_handle *handle = ALG_MALLOC(sizeof(abc_handle));
-    handle->optim = optim;
-    handle->pop_size = pop_size;
+    if (handle == NULL)
+        return NULL;
     handle->population = alg_matrix_create(pop_size, optim.dim);
     handle->fitness = alg_vector_create(pop_size, 0.0);
     handle->count = ALG_CALLOC((size_t)pop_size, sizeof(int));
+    if (handle->population == NULL || handle->fitness == NULL || handle->count == NULL) {
+        alg_matrix_free(handle->population);
+        alg_vector_free(handle->fitness);
+        ALG_FREE(handle->count);
+        ALG_FREE(handle);
+        return NULL;
+    }
+    handle->optim = optim;
+    handle->pop_size = pop_size;
     handle->max_count = max_count;
     alg_matrix_fill_random_vecs(handle->population, optim.l_range, optim.r_range, SET_ROW);
     optim_fresh(&handle->optim, handle->population, handle->fitness);

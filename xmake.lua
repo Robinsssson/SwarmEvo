@@ -3,11 +3,7 @@ add_rules("plugin.compile_commands.autoupdate", {outputdir = "."})
 
 includes("algmath")
 
-if is_plat("windows") then
-    set_toolchains("gcc")
-else 
-    set_toolchains("gcc")
-end 
+set_toolchains("gcc")
 
 target("alg-project")
     set_kind("shared")

@@ -6,7 +6,7 @@ static void sa_fresh_best_solution(sa_handle *handle) {
     for (int i = 0; i < handle->optim.dim; i++) {
         handle->optim.best_solution->vector[i] = handle->best_solution->vector[i];
     }
-    handle->optim.bast_value = handle->best_energy;
+    handle->optim.best_value = handle->best_energy;
 }
 
 sa_handle *sa_init(optim_handle optim, double temperature, double cooling_rate) {

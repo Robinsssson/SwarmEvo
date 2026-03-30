@@ -54,21 +54,14 @@ int test_sa(void);
             FRESH(OPTIM_METHOD)(handle, gen);                                                                          \
             if (i % iter_num == 0)                                                                                     \
                 optim_print(&handle->optim);                                                                           \
-        } while (!FLOAT_COMPARE_IS(handle->optim.bast_value, 0) && i++ < TEST_MAX_ITER);                               \
+        } while (!FLOAT_COMPARE_IS(handle->optim.best_value, 0) && i++ < TEST_MAX_ITER);                               \
         optim_print(&handle->optim);                                                                                   \
-        if (FLOAT_COMPARE_IS(handle->optim.bast_value, TEST_RET_VAL)) {                                                \
-            FREE(OPTIM_METHOD)(handle);                                                                                \
-            optim_free(&optim);                                                                                        \
-            TEST_OPTIM_END;                                                                                            \
-            check_memory_leaks();                                                                                      \
-            return TEST_PASSED;                                                                                        \
-        } else {                                                                                                       \
-            FREE(OPTIM_METHOD)(handle);                                                                                \
-            optim_free(&optim);                                                                                        \
-            TEST_OPTIM_END;                                                                                            \
-            check_memory_leaks();                                                                                      \
-            return TEST_FAILED;                                                                                        \
-        }                                                                                                              \
+        int converged = FLOAT_COMPARE_IS(handle->optim.best_value, TEST_RET_VAL);                                      \
+        FREE(OPTIM_METHOD)(handle);                                                                                    \
+        optim_free(&optim);                                                                                            \
+        TEST_OPTIM_END;                                                                                                \
+        int leaked = check_memory_leaks();                                                                             \
+        return (converged && leaked == 0) ? TEST_PASSED : TEST_FAILED;                                                 \
     }
 
 extern optimization test_function_list[];

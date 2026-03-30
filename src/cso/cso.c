@@ -11,14 +11,23 @@ cso_handle *cso_init(optim_handle optim, int pop_size, int rn, int hn, int cn, d
     if (pop_size != rn + hn + cn)
         return NULL;
     cso_handle *handle = ALG_MALLOC(sizeof(cso_handle));
+    if (handle == NULL)
+        return NULL;
+    handle->fitness = alg_vector_create(pop_size, INFINITY);
+    handle->position = alg_matrix_create(pop_size, optim.dim);
+    handle->sorted_index = ALG_MALLOC(sizeof(int) * (size_t)pop_size);
+    if (handle->fitness == NULL || handle->position == NULL || handle->sorted_index == NULL) {
+        alg_vector_free(handle->fitness);
+        alg_matrix_free(handle->position);
+        ALG_FREE(handle->sorted_index);
+        ALG_FREE(handle);
+        return NULL;
+    }
     handle->optim = optim;
     handle->pop_size = pop_size;
     handle->hn = hn; // 母鸡
     handle->rn = rn; // 公鸡
     handle->cn = cn;
-    handle->fitness = alg_vector_create(pop_size, INFINITY);
-    handle->position = alg_matrix_create(pop_size, optim.dim);
-    handle->sorted_index = ALG_MALLOC(sizeof(int) * (size_t)pop_size);
     handle->fl = MATH_CLAIM(fl, 0, 2);
 
     alg_matrix_fill_random_vecs(handle->position, optim.l_range, optim.r_range, SET_ROW);
@@ -63,21 +72,21 @@ alg_state cso_fresh(cso_handle *handle, int gen) {
                *r_vector = alg_vector_create(handle->optim.dim, 0.0);
     int index_k, iter_dim, group, i;
     double cache_fitness, k_fitness, r_fitness;
-    double simga, rand_val, c1, c2;
+    double sigma, rand_val, c1, c2;
     for (int __iter = 0; __iter < gen; __iter++) {
 
-        for (i = 0; i < handle->hn; i++) {
+        for (i = 0; i < handle->rn; i++) {
             alg_matrix_get_row(handle->position, cache_vector, handle->sorted_index[i]);
             cache_fitness = handle->optim.function(cache_vector);
 
             index_k = rand_except(0, handle->hn, handle->sorted_index[i]);
             alg_matrix_get_row(handle->position, k_vector, handle->sorted_index[index_k]);
             k_fitness = handle->optim.function(k_vector);
-            simga = k_fitness < cache_fitness
+            sigma = k_fitness < cache_fitness
                         ? exp(alg_math_safe_divide(k_fitness - cache_fitness, fabs(cache_fitness) + 1e-9))
                         : 1;
 
-            rand_val = alg_random_normal(0, simga);
+            rand_val = alg_random_normal(0, sigma);
             for (iter_dim = 0; iter_dim < handle->optim.dim; iter_dim++)
                 *alg_matrix_get_pos_mutval(handle->position, handle->sorted_index[i], iter_dim) *= 1 + rand_val;
             alg_matrix_clamp_vecs(handle->position, handle->optim.l_range, handle->optim.r_range, SET_ROW);

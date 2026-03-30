@@ -3,7 +3,6 @@
 #include "algmath.h"
 #include "matrix/alg_matrix.h"
 #include "vector/alg_vector.h"
-#include <corecrt.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,21 +22,34 @@ pso_handle *pso_init(optim_handle optim, int pop_size, double w, double c1, doub
     if (!handle)
         return NULL;
 
+    // velocity initialized to small random values in [-1, 1]
     handle->vec = alg_matrix_create(pop_size, optim.dim);
+    // position randomly initialized within search bounds
     handle->position = alg_matrix_create(pop_size, optim.dim);
-    handle->p_best = alg_matrix_copy(handle->position);
-    handle->g_best = alg_matrix_create(pop_size, optim.dim); // Global best is usually a single particle
+    // g_best stores a single best particle (1 row)
+    handle->g_best = alg_matrix_create(1, optim.dim);
     handle->fitness = alg_vector_create(pop_size, 0.0);
-    if (!handle->vec || !handle->position || !handle->p_best || !handle->g_best) {
+    if (!handle->vec || !handle->position || !handle->g_best || !handle->fitness) {
         pso_free_internal(handle);
         return NULL;
     }
+
+    alg_matrix_fill_random_vecs(handle->position, optim.l_range, optim.r_range, SET_ROW);
+    handle->p_best = alg_matrix_copy(handle->position);
+    if (!handle->p_best) {
+        pso_free_internal(handle);
+        return NULL;
+    }
+    alg_matrix_fill_random(handle->vec, -1, 1);
 
     handle->p_best_fitness = ALG_MALLOC((size_t)pop_size * sizeof(double));
     if (!handle->p_best_fitness) {
         pso_free_internal(handle);
         return NULL;
     }
+    for (int i = 0; i < pop_size; i++)
+        handle->p_best_fitness[i] = INFINITY;
+
     handle->optim = optim;
     handle->g_best_index = 0;
     handle->g_best_fitness = INFINITY;
@@ -45,8 +57,6 @@ pso_handle *pso_init(optim_handle optim, int pop_size, double w, double c1, doub
     handle->c2 = c2;
     handle->pop_size = pop_size;
     handle->w = w;
-    alg_matrix_fill_random_vecs(handle->vec, handle->optim.l_range, handle->optim.r_range, SET_ROW);
-    alg_matrix_fill_random(handle->vec, -1, 1);
     optim_fresh(&handle->optim, handle->position, handle->fitness);
     return handle;
 }
@@ -88,10 +98,9 @@ alg_state pso_fresh(pso_handle *handle, int gen) {
         }
 
         // 更新全局最佳位置和适应度
-        if (best_idx != handle->g_best_index) {
+        if (best_val < handle->g_best_fitness) {
             alg_matrix_get_row(handle->position, best_position, best_idx);
-            for (int i = 0; i < handle->pop_size; i++)
-                alg_matrix_set_row(handle->g_best, i, best_position); // g_best 是单个粒子的位置
+            alg_matrix_set_row(handle->g_best, 0, best_position);
             handle->g_best_fitness = best_val;
             handle->g_best_index = best_idx;
         }
@@ -100,22 +109,28 @@ alg_state pso_fresh(pso_handle *handle, int gen) {
         alg_matrix_dot_number_inplace(handle->vec, handle->w);
 
         alg_matrix *sub1 = alg_matrix_subtraction(handle->p_best, handle->position);
-        alg_matrix *sub2 = alg_matrix_subtraction(handle->g_best, handle->position);
 
         r1 = alg_random_float64(0, 1);
         r2 = alg_random_float64(0, 1);
 
         alg_matrix_dot_number_inplace(sub1, r1 * handle->c1);
-        alg_matrix_dot_number_inplace(sub2, r2 * handle->c2);
-
         alg_matrix_add_inplace(handle->vec, sub1);
-        alg_matrix_add_inplace(handle->vec, sub2);
+
+        // broadcast g_best (single row) across all particles
+        alg_matrix_get_row(handle->g_best, best_position, 0);
+        for (int i = 0; i < handle->pop_size; i++) {
+            for (int d = 0; d < handle->optim.dim; d++) {
+                double *v = alg_matrix_get_pos_mutval(handle->vec, i, d);
+                double pos = *alg_matrix_get_pos_val(handle->position, i, d);
+                *v += r2 * handle->c2 * (best_position->vector[d] - pos);
+            }
+        }
+
         alg_matrix_clamp(handle->vec, -1, 1);
         alg_matrix_add_inplace(handle->position, handle->vec);
         alg_matrix_clamp_vecs(handle->position, handle->optim.l_range, handle->optim.r_range, SET_ROW);
 
         alg_matrix_free(sub1);
-        alg_matrix_free(sub2);
 
         optim_fresh(&handle->optim, handle->position, handle->fitness);
     }
