@@ -20,9 +20,7 @@ sa_handle *sa_init(optim_handle optim, double temperature, double cooling_rate) 
         handle->current_solution->vector[i] = alg_random_float64(optim.l_range->vector[i], optim.r_range->vector[i]);
     }
     handle->best_solution = alg_vector_create_like(handle->current_solution);
-
     handle->new_solution = alg_vector_create_like(handle->current_solution);
-
     handle->optim = optim;
     handle->temperature = temperature;
     handle->cooling_rate = cooling_rate;
@@ -33,9 +31,18 @@ sa_handle *sa_init(optim_handle optim, double temperature, double cooling_rate) 
 }
 
 alg_state sa_fresh(sa_handle *handle, int gen) {
+    double initial_temp = handle->temperature;
+    int no_improve_count = 0;
+
     for (int __iter = 0; __iter < gen; __iter++) {
+        double temp_ratio = handle->temperature / initial_temp;
+        double step_size = (handle->optim.r_range->vector[0] - handle->optim.l_range->vector[0]) * 0.05 * temp_ratio;
+        if (step_size < 0.001)
+            step_size = 0.001;
+
         for (int i = 0; i < handle->optim.dim; i++) {
-            handle->new_solution->vector[i] = handle->current_solution->vector[i] + alg_random_float64(-1, 1);
+            handle->new_solution->vector[i] =
+                handle->current_solution->vector[i] + alg_random_float64(-step_size, step_size);
         }
         alg_vector_claim_vecs(handle->new_solution, handle->optim.l_range, handle->optim.r_range);
 
@@ -47,17 +54,49 @@ alg_state sa_fresh(sa_handle *handle, int gen) {
             handle->current_energy = new_energy;
             for (int i = 0; i < handle->optim.dim; i++)
                 handle->current_solution->vector[i] = handle->new_solution->vector[i];
+            no_improve_count = 0;
+        } else {
+            no_improve_count++;
         }
 
-        if (handle->current_energy < handle->best_energy) {
-            handle->best_energy = handle->current_energy;
+        if (new_energy < handle->best_energy) {
+            handle->best_energy = new_energy;
             for (int i = 0; i < handle->optim.dim; i++)
-                handle->best_solution->vector[i] = handle->current_solution->vector[i];
+                handle->best_solution->vector[i] = handle->new_solution->vector[i];
         }
-        handle->temperature *= handle->cooling_rate;
-        handle->temperature = handle->temperature > 1 ? handle->temperature : 1;
+
+        double cooling = handle->cooling_rate;
+        if (no_improve_count > 5)
+            cooling = 0.95;
+        handle->temperature *= cooling;
         sa_fresh_best_solution(handle);
     }
+
+    // 最终局部搜索 - 坐标下降法
+    double step = 0.01;
+    for (int round = 0; round < 5; round++) {
+        for (int d = 0; d < handle->optim.dim; d++) {
+            for (int dir = -1; dir <= 1; dir += 2) {
+                for (int i = 0; i < 20; i++) {
+                    for (int j = 0; j < handle->optim.dim; j++)
+                        handle->new_solution->vector[j] = handle->best_solution->vector[j];
+                    handle->new_solution->vector[d] += dir * step;
+                    alg_vector_claim_vecs(handle->new_solution, handle->optim.l_range, handle->optim.r_range);
+                    double new_energy = handle->optim.function(handle->new_solution);
+                    if (new_energy < handle->best_energy) {
+                        handle->best_energy = new_energy;
+                        for (int k = 0; k < handle->optim.dim; k++)
+                            handle->best_solution->vector[k] = handle->new_solution->vector[k];
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+        step *= 0.5;
+    }
+    sa_fresh_best_solution(handle);
+
     return ALG_OK;
 }
 
